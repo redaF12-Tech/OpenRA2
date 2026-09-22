@@ -1,0 +1,56 @@
+name: Build OpenRA2 Ready Release
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch: # يتيح لك تشغيل البناء يدوياً من واجهة GitHub
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout OpenRA2 Repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x' # إصدار NET المطلوب لبناء محرك OpenRA الحديث
+
+    - name: Fetch OpenRA Engine Dependencies
+      shell: cmd
+      run: |
+        make.cmd fetch
+
+    - name: Compile OpenRA2 Engine
+      shell: cmd
+      run: |
+        make.cmd all
+
+    - name: Create Game Launch Script (Windows Portable)
+      shell: cmd
+      run: |
+        echo @echo off > Launch-OpenRA2.bat
+        echo start "" "bin\OpenRA.exe" Game.Mod=ra2 >> Launch-OpenRA2.bat
+
+    - name: Prepare Content Directory Structure
+      shell: cmd
+      run: |
+        mkdir "Content\ra2"
+        echo Place your RA2 .mix files (ra2.mix, language.mix, theme.mix) here if needed > Content\ra2\README.txt
+
+    - name: Create Portable Zip Package
+      shell: pwsh
+      run: |
+        Compress-Archive -Path bin, mods, glsl, Content, Launch-OpenRA2.bat, OpenRA.Game.exe.config -DestinationPath OpenRA2-Windows-Ready.zip
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: OpenRA2-Windows-Executable
+        path: OpenRA2-Windows-Ready.zip
+        retention-days: 7
+        
