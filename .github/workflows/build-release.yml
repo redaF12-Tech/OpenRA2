@@ -3,7 +3,7 @@ name: Build OpenRA2 Ready Release
 on:
   push:
     branches: [ main, master ]
-  workflow_dispatch: # يتيح لك تشغيل البناء يدوياً من واجهة GitHub
+  workflow_dispatch:
 
 jobs:
   build-windows:
@@ -18,7 +18,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '8.0.x' # إصدار NET المطلوب لبناء محرك OpenRA الحديث
+        dotnet-version: '8.0.x'
 
     - name: Fetch OpenRA Engine Dependencies
       shell: cmd
@@ -34,18 +34,22 @@ jobs:
       shell: cmd
       run: |
         echo @echo off > Launch-OpenRA2.bat
-        echo start "" "bin\OpenRA.exe" Game.Mod=ra2 >> Launch-OpenRA2.bat
+        echo start "" "OpenRA.exe" Game.Mod=ra2 >> Launch-OpenRA2.bat
 
     - name: Prepare Content Directory Structure
       shell: cmd
       run: |
-        mkdir "Content\ra2"
-        echo Place your RA2 .mix files (ra2.mix, language.mix, theme.mix) here if needed > Content\ra2\README.txt
+        if not exist "Content\ra2" mkdir "Content\ra2"
+        echo Place your RA2 .mix files here > Content\ra2\README.txt
 
-    - name: Create Portable Zip Package
+    - name: Create Portable Package
       shell: pwsh
       run: |
-        Compress-Archive -Path bin, mods, glsl, Content, Launch-OpenRA2.bat, OpenRA.Game.exe.config -DestinationPath OpenRA2-Windows-Ready.zip
+        # تجميع الملفات الموجودة في الجذر وفي المجلدات المسؤولة عن المود والتشغيل
+        $filesToZip = Get-ChildItem -Path . -Include *.exe, *.dll, *.config, mods, glsl, Content, Launch-OpenRA2.bat -Recurse -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName
+        
+        # استخدام الأمر مع التأكد من إيجاد الملفات المطلوبة
+        Compress-Archive -Path *.exe, *.dll, *.config, mods, glsl, Content, Launch-OpenRA2.bat -DestinationPath OpenRA2-Windows-Ready.zip -Force
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
@@ -53,4 +57,3 @@ jobs:
         name: OpenRA2-Windows-Executable
         path: OpenRA2-Windows-Ready.zip
         retention-days: 7
-        
